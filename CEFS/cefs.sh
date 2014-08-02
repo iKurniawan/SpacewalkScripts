@@ -1,7 +1,9 @@
 #!/bin/bash
 ## Configuration start ##
 MAILTO=root
-CHANNELS="centos6-x86_64 centos6-x86_64-updates centos6-x86_64-contrib centos6-x86_64-extras centos6-x86_64-centosplus epel6-centos6-x86_64"
+CHANNELS="centos6-x86_64 centos6-x86_64-updates centos6-x86_64-contrib centos6-x86_64-extras \
+centos6-x86_64-centosplus centos6-x86_64-scl centos6-x86_64-fasttrack epel6-centos6-x86_64 \
+centos7-x86_64 centos7-x86_64-updates centos7-x86_64-centosplus centos7-x86_64-extras"
 SWSERVER="localhost"
 LOCKFILE="/var/run/spacewalk_sync.lock"
 ## Configuration end ##
