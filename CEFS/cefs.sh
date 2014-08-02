@@ -1,7 +1,7 @@
 #!/bin/bash
 ## Configuration start ##
 MAILTO=root
-CHANNELS="centos6-x86_64 centos6-x86_64-updates centos6-x86_64-addons centos6-x86_64-contrib centos6-x86_64-extras centos6-x86_64-centosplus epel6-centos6-x86_64"
+CHANNELS="centos6-x86_64 centos6-x86_64-updates centos6-x86_64-contrib centos6-x86_64-extras centos6-x86_64-centosplus epel6-centos6-x86_64"
 SWSERVER="localhost"
 LOCKFILE="/var/run/spacewalk_sync.lock"
 ## Configuration end ##
@@ -20,7 +20,7 @@ reposync()
         fi
         trap "rm ${LOCKFILE}" EXIT
 
-	    for chanlabel in $CHANNELS;
+        for chanlabel in $CHANNELS;
         do spacewalk-repo-sync -c $chanlabel;
         done
     }

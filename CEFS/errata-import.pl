@@ -8,7 +8,7 @@
 # perl-XML-Simple, perl-Text-Unidecode and perl-Frontier-RPC
 #
 # Author: Steve Meier
-# Date: 14.01.2013
+# Date: 28.07.2014
 #
 # History:
 # 20120206 - Initial version
@@ -34,6 +34,10 @@
 # 20130323 - Experimental support for updating existing Errata (adding packages)
 # 20130909 - Added support for API Version 13 in SW 2.0 (Thank you, Alex)
 # 20131213 - Merge patch from Aron Parsons to introduce --quiet
+# 20140311 - Added support for API Version 14 in SW 2.1 (Thank you, Rolf)
+# 20140316 - Fixed support for Version 14 (Thanks, Christian)
+# 20140723 - Added support for API Version 15 in SW 2.2 (Thank you, Christian)
+# 20140728 - Fixed a warning when importing Xen4CentOS errata (Thanks, Aron)
 #
 # To do:
 # - Add CVEs to Errata (using errata.set_details)			[ DONE! ]
@@ -54,8 +58,8 @@ import Text::Unidecode;
 import XML::Simple;
 
 # Version information
-my $version = "20140308";
-my @supportedapi = ( '10.9','10.11','11.00','11.1','12','13','14' );
+my $version = "20140728";
+my @supportedapi = ( '10.9','10.11','11.00','11.1','12','13','14','15' );
 
 # Spacewalk Version => API cheatsheet
 # 0.6 => 10.9  == TESTED
@@ -73,6 +77,7 @@ my @supportedapi = ( '10.9','10.11','11.00','11.1','12','13','14' );
 # 1.9 => 12    == TESTED
 # 2.0 => 13    == TESTED
 # 2.1 => 14    == TESTED
+# 2.2 => 15    == TESTED
 
 # Variable declation
 $| = 1;
@@ -110,6 +115,7 @@ my $getdetails;
 my $userroles;
 my %existing;
 my $authtime;
+my $ignoreapiversion;
 
 # Print call and parameters if in debug mode (GetOptions will clear @ARGV)
 if (join(' ',@ARGV) =~ /--debug/) { print STDERR "DEBUG: Called as $0 ".join(' ',@ARGV)."\n"; }
@@ -128,7 +134,8 @@ $getopt = GetOptions( 'server=s'		=> \$server,
                       'sync-timeout=i'		=> \$synctimeout,
                       'include-channels:s{,}'	=> \@includechannels,
                       'exclude-channels:s{,}'	=> \@excludechannels,
-                      'autopush'		=> \$autopush
+                      'autopush'		=> \$autopush,
+                      'ignore-api-version'      => \$ignoreapiversion
                      );
 
 # Check for arguments
@@ -166,15 +173,19 @@ if ($apiversion = $client->call('api.get_version')) {
 #####################################
 foreach (@supportedapi) {
   if ($apiversion eq $_) {
-    &info("API version is supported\n");
+    &info("API version $apiversion is supported\n");
     $apisupport = 1;
   }
 }
 
 # In case we found an unsupported API
 if (not($apisupport)) {
-  &error("Your API version is not supported. Try upgrading this script.\n");
-  exit 2;
+  if ($ignoreapiversion) {
+    &warning("API version $apiversion has not been tested but you wanted to continue.\n");
+  } else {
+    &error("API version $apiversion is not supported. Try upgrading this script.\n");
+    exit 2;
+  }
 }
 
 ###########################
@@ -418,9 +429,10 @@ foreach $advisory (sort(keys(%{$xml}))) {
   # Generate OVAL ID for security errata
   $ovalid = "";
   if ($advid =~ /CESA/) {
-    $advid =~ /CESA-(\d+):(\d+)/;
-    $ovalid = "oval:com.redhat.rhsa:def:$1".sprintf("%04d", $2);
-    &debug("Processing $advid -- OVAL ID is $ovalid\n");
+    if ($advid =~ /CESA-(\d+):(\d+)/) {
+      $ovalid = "oval:com.redhat.rhsa:def:$1".sprintf("%04d", $2);
+      &debug("Processing $advid -- OVAL ID is $ovalid\n");
+    }
   }
 
   # Check if the errata already exists
@@ -589,6 +601,12 @@ foreach $advisory (sort(keys(%{$xml}))) {
 
 # FIN
 &info("Errata created: $created\n");
+if (not($publish)) {
+  &info("Errata have been created but NOT published!\n");
+  &info("Please go to: Errata -> Manage Errata -> Unpublished to find them\n");
+  &info("If you want to publish them please delete the unpublished Errata and run this script again\n");
+  &info("with the --publish parameter\n");
+}
 &logout;
 exit;
 
@@ -621,7 +639,7 @@ sub usage() {
   print "         --include-channels=<CHANNELS> | --exclude-channels=<CHANNELS> |\n";
   print "         --sync-channels | --sync-timeout=<TIMEOUT> |\n";
   print "         --bugfix | --security | --enhancement |\n";
-  print "         --publish | --autopush\n";
+  print "         --publish | --autopush | --ignore-api-version\n";
   print "         --quiet | --debug ]\n";
   print "\n";
   print "REQUIRED:\n";
@@ -639,6 +657,7 @@ sub usage() {
   print "  --enhancement\t\tImport Enhancement Advisories [CEEA] (default: all)\n";
   print "  --publish\t\tPublish errata after creation (default: unpublished)\n";
   print "  --autopush\t\tAllow server to copy packages around (NOT recommended)\n";
+  print "  --ignore-api-version\tContinue if the API version is untested (usually safe)\n";
   print "\n";
   print "LOGGING:\n";
   print "  --quiet\t\tOnly print warnings and errors\n";
